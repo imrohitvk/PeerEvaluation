@@ -130,6 +130,8 @@
               placeholder="Enter Password"
               name="password"
               required
+              pattern="^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+              title="Password must be at least 8 characters long, including at least one letter, one number, and one special character."
             />
           </div>
 
