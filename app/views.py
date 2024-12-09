@@ -24,12 +24,10 @@ import base64
 import threading
 from django.contrib import messages
 import re
-
-base_url = "http://127.0.0.1:8080/"
-
-
 import random
 import array
+
+base_url = "http://127.0.0.1:8080/"
 
 def generate_password(length):
     MAX_LEN = 12
@@ -375,6 +373,7 @@ def login_page(request):
 
 # Regex for validating a strong password
 PASSWORD_REGEX = r"^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+
 
 def register_page(request):
     # Check if the HTTP request method is POST (form submission)
