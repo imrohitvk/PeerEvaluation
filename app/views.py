@@ -21,13 +21,13 @@ import requests
 # import google.generativeai as genai
 import json
 import base64
+import threading
+from django.contrib import messages
 import re
-
-base_url = "http://127.0.0.1:8080/"
-
-
 import random
 import array
+
+base_url = "http://127.0.0.1:8080/"
 
 def generate_password(length):
     MAX_LEN = 12
@@ -92,6 +92,7 @@ def send_peer_evaluation_email(evaluation_link, email_id):
         recipient_list=[email_id],
         html_message=html_message,  # Attach the HTML message
         fail_silently=False,)
+
 
 def setPeerEval(document_instances):
     """
@@ -179,11 +180,21 @@ def AdminDashboard(request):
             document.save()
             document_instances.append(document)
 
-        # Call setPeerEval function only once with the collected document instances
-        if document_instances:
-            setPeerEval(document_instances)
+        # Background thread function for calling setPeerEval
+        def run_peer_eval(documents):
+            try:
+                setPeerEval(documents)
+            except Exception as e:
+                # Log the error and notify the admin (adjust logging as per your project setup)
+                error_message = f"Error in Peer Evaluation assignment: {str(e)}"
+                print(error_message)  # Replace with a logging system if available
 
-        messages.success(request, 'Documents uploaded and Peer evaluations assigned successfully!')
+        # Start the thread for setPeerEval
+        if document_instances:
+            thread = threading.Thread(target=run_peer_eval, args=(document_instances,))
+            thread.start()
+
+        messages.success(request, 'Documents uploaded successfully! Peer evaluations are being assigned in the background.')
         return redirect('/AdminHome/')
 
     return render(request, 'AdminDashboard.html', {'users': user_profile.serialize()})
@@ -362,6 +373,7 @@ def login_page(request):
 
 # Regex for validating a strong password
 PASSWORD_REGEX = r"^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+
 
 def register_page(request):
     # Check if the HTTP request method is POST (form submission)
@@ -552,17 +564,21 @@ def studentHome(request):
         uid = student_profile.uid  # UID of the current user
 
         # Step 3: Check for all UIDs in PeerEvaluation table for associated document IDs
-        peer_evaluation_docs = PeerEvaluation.objects.filter(evaluator_id=uid).values_list('document_id', flat=True)
+        peer_evaluation_docs = PeerEvaluation.objects.filter(evaluator_id=uid).values('document_id', 'evaluated')
+
+        # Map document IDs to their evaluated_column values
+        peer_evaluation_map = {item['document_id']: item['evaluated'] for item in peer_evaluation_docs}
 
         # Step 4: Fetch all documents from the `documents` table
-        evaluation_files = documents.objects.filter(id__in=peer_evaluation_docs).select_related('uid')
+        evaluation_files = documents.objects.filter(id__in=peer_evaluation_map.keys()).select_related('uid')
 
         # Prepare data for the fetched documents
         evaluation_files_data = [
             {
                 'document_title': doc.title,
                 'description': doc.description,
-                'file_url': f"/studentEval/{doc.id}/{uid}"
+                'file_url': f"/studentEval/{doc.id}/{uid}",
+                'evaluated': peer_evaluation_map.get(doc.id)  # Get the evaluated_column value
             }
             for doc in evaluation_files
         ]
@@ -580,7 +596,7 @@ def studentHome(request):
                         'evaluator_id': review.evaluator_id,
                         'evaluation': review.evaluation or [],
                         'feedback': "No feedback found" if " ".join(eval(review.feedback)).strip() == "" else ",".join(eval(review.feedback)).strip(),
-                        'score': review.score or 0,
+                        'score': review.score or 0
                     }
                     for review in doc.peerevaluation_set.all()
                 ],
@@ -605,7 +621,6 @@ def studentHome(request):
             'evaluation_files': [],
             'own_documents': [],
         })
-
 
 # NOTE: view and evaluate the assignment
 def studentEval(request, doc_id, eval_id):

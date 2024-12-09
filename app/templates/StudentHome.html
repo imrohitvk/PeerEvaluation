@@ -86,6 +86,7 @@
                     <h2 class="text-xl font-semibold text-gray-800 mb-4">Evaluation Files</h2>
                     {% if evaluation_files %}
                     <p>You have the following evaluation files:</p>
+                    {{evaluation_files}}
                     <table class="min-w-full table-auto mt-4">
                         <thead>
                             <tr>
@@ -102,8 +103,7 @@
                                 </td>
                                 <td class="border px-4 py-2">
                                     {% if file.evaluated %}
-                                    <span class="text-green
-                                        font-semibold">Evaluated</span>
+                                    <span class="text-green-600 font-semibold">Evaluated</span>
                                     {% else %}
                                     <span class="text-red-600 font-semibold">Not Evaluated</span>
                                     {% endif %}
