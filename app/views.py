@@ -21,6 +21,8 @@ import requests
 # import google.generativeai as genai
 import json
 import base64
+import threading
+from django.contrib import messages
 
 base_url = "http://127.0.0.1:8080/"
 
@@ -91,6 +93,7 @@ def send_peer_evaluation_email(evaluation_link, email_id):
         recipient_list=[email_id],
         html_message=html_message,  # Attach the HTML message
         fail_silently=False,)
+
 
 def setPeerEval(document_instances):
     """
@@ -178,11 +181,21 @@ def AdminDashboard(request):
             document.save()
             document_instances.append(document)
 
-        # Call setPeerEval function only once with the collected document instances
-        if document_instances:
-            setPeerEval(document_instances)
+        # Background thread function for calling setPeerEval
+        def run_peer_eval(documents):
+            try:
+                setPeerEval(documents)
+            except Exception as e:
+                # Log the error and notify the admin (adjust logging as per your project setup)
+                error_message = f"Error in Peer Evaluation assignment: {str(e)}"
+                print(error_message)  # Replace with a logging system if available
 
-        messages.success(request, 'Documents uploaded and Peer evaluations assigned successfully!')
+        # Start the thread for setPeerEval
+        if document_instances:
+            thread = threading.Thread(target=run_peer_eval, args=(document_instances,))
+            thread.start()
+
+        messages.success(request, 'Documents uploaded successfully! Peer evaluations are being assigned in the background.')
         return redirect('/AdminHome/')
 
     return render(request, 'AdminDashboard.html', {'users': user_profile.serialize()})
@@ -537,7 +550,7 @@ def studentHome(request):
         student_profile = Student.objects.filter(student_id=request.user).first()
         if not student_profile:
             # Step 2: Redirect to logout if UID is not found
-            messages.error(request, "Invalid student profile. Please contact admin.")
+            messages.error(request, "Invalid student profile. Wait for admin approval.")
             return redirect('/logout/')
 
         uid = student_profile.uid  # UID of the current user
