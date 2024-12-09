@@ -22,6 +22,50 @@ import requests
 import json
 import base64
 
+base_url = "http://127.0.0.1:8080/"
+
+
+import random
+import array
+
+def generate_password(length):
+    MAX_LEN = 12
+
+    DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']  
+    LOCASE_CHARACTERS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 
+                        'i', 'j', 'k', 'm', 'n', 'o', 'p', 'q',
+                        'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
+                        'z']
+
+    UPCASE_CHARACTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 
+                        'I', 'J', 'K', 'M', 'N', 'O', 'P', 'Q',
+                        'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y',
+                        'Z']
+
+    SYMBOLS = ['@', '#', '$', '%', '=', ':', '?', '.', '/', '|', '~', '>', 
+            '*', '(', ')', '<']
+
+    COMBINED_LIST = DIGITS + UPCASE_CHARACTERS + LOCASE_CHARACTERS + SYMBOLS
+
+    rand_digit = random.choice(DIGITS)
+    rand_upper = random.choice(UPCASE_CHARACTERS)
+    rand_lower = random.choice(LOCASE_CHARACTERS)
+    rand_symbol = random.choice(SYMBOLS)
+
+    temp_pass = rand_digit + rand_upper + rand_lower + rand_symbol
+
+    for x in range(MAX_LEN - 4):
+        temp_pass = temp_pass + random.choice(COMBINED_LIST)
+
+        temp_pass_list = array.array('u', temp_pass)
+        random.shuffle(temp_pass_list)
+
+    password = ""
+    for x in temp_pass_list:
+            password = password + x
+            
+    return password
+
 
 # NOTE: Send email to the assigned peer
 def send_peer_evaluation_email(evaluation_link, email_id):
@@ -87,7 +131,7 @@ def setPeerEval(document_instances):
                 peer_evaluations_assigned[document.id] += 1
                 current_assigned_count += 1
                 # encoded_doc_id = encode_id(str(document.id) + " " + str(student.uid))
-                evaluation_link = f"http://127.0.0.1:8000/studentEval/{document.id}/{student.uid}/"
+                evaluation_link = f"{base_url}studentEval/{document.id}/{student.uid}/"
                 send_peer_evaluation_email(evaluation_link, email)
                 
                 if current_assigned_count == num_peers:
@@ -616,6 +660,15 @@ def studentEval(request, doc_id, eval_id):
 
     # Render the template for viewing the document and providing evaluation
     return render(request, 'AssignmentView.html', context)
+
+
+def forgot_password(request):
+    if request.method == 'POST':
+        # Fetch the user object based on the provided email
+        user = User.objects.filter(email=request.POST.get('email')).first()
+        if user:
+            token = base64.b64encode(os.urandom(24)).decode('utf-8')
+            # Send email
 
 
 # # NOTE: Send email to the assigned peer
