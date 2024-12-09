@@ -564,17 +564,21 @@ def studentHome(request):
         uid = student_profile.uid  # UID of the current user
 
         # Step 3: Check for all UIDs in PeerEvaluation table for associated document IDs
-        peer_evaluation_docs = PeerEvaluation.objects.filter(evaluator_id=uid).values_list('document_id', flat=True)
+        peer_evaluation_docs = PeerEvaluation.objects.filter(evaluator_id=uid).values('document_id', 'evaluated')
+
+        # Map document IDs to their evaluated_column values
+        peer_evaluation_map = {item['document_id']: item['evaluated'] for item in peer_evaluation_docs}
 
         # Step 4: Fetch all documents from the `documents` table
-        evaluation_files = documents.objects.filter(id__in=peer_evaluation_docs).select_related('uid')
+        evaluation_files = documents.objects.filter(id__in=peer_evaluation_map.keys()).select_related('uid')
 
         # Prepare data for the fetched documents
         evaluation_files_data = [
             {
                 'document_title': doc.title,
                 'description': doc.description,
-                'file_url': f"/studentEval/{doc.id}/{uid}"
+                'file_url': f"/studentEval/{doc.id}/{uid}",
+                'evaluated': peer_evaluation_map.get(doc.id)  # Get the evaluated_column value
             }
             for doc in evaluation_files
         ]
@@ -592,7 +596,7 @@ def studentHome(request):
                         'evaluator_id': review.evaluator_id,
                         'evaluation': review.evaluation or [],
                         'feedback': "No feedback found" if " ".join(eval(review.feedback)).strip() == "" else ",".join(eval(review.feedback)).strip(),
-                        'score': review.score or 0,
+                        'score': review.score or 0
                     }
                     for review in doc.peerevaluation_set.all()
                 ],
@@ -617,7 +621,6 @@ def studentHome(request):
             'evaluation_files': [],
             'own_documents': [],
         })
-
 
 # NOTE: view and evaluate the assignment
 def studentEval(request, doc_id, eval_id):
