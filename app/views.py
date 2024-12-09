@@ -537,7 +537,7 @@ def studentHome(request):
         student_profile = Student.objects.filter(student_id=request.user).first()
         if not student_profile:
             # Step 2: Redirect to logout if UID is not found
-            messages.error(request, "Invalid student profile. Please contact admin.")
+            messages.error(request, "Invalid student profile. Wait for admin approval.")
             return redirect('/logout/')
 
         uid = student_profile.uid  # UID of the current user
