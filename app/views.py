@@ -23,6 +23,7 @@ import json
 import base64
 import threading
 from django.contrib import messages
+import re
 
 base_url = "http://127.0.0.1:8080/"
 
@@ -372,8 +373,9 @@ def login_page(request):
     # Render the login page template (GET request)
     return render(request, 'login.html')
 
+# Regex for validating a strong password
+PASSWORD_REGEX = r"^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
 
-# Define a view function for the registration page
 def register_page(request):
     # Check if the HTTP request method is POST (form submission)
     if request.method == 'POST':
@@ -382,18 +384,25 @@ def register_page(request):
         username = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
-        # roll_no = request.POST.get('roll_no')
 
         print(first_name, last_name, username, email, password)
-        
+
         # Check if a user with the provided username already exists
         user = User.objects.filter(username=username)
         
         if user.exists():
             # Display an information message if the username is taken
             messages.info(request, "Username already taken!")
-            return redirect('login/')
-        
+            return redirect('/register/')
+
+        # Validate the password strength using regex
+        if not re.match(PASSWORD_REGEX, password):
+            messages.error(
+                request,
+                "Password must be at least 8 characters long, include at least one letter, one number, and one special character."
+            )
+            return redirect('/register/')
+
         # Create a new User object with the provided information
         user = User.objects.create_user(
             first_name=first_name,
