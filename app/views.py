@@ -486,6 +486,7 @@ def forgetPassword(request):
         return redirect('/login/')
     return render(request, 'changePassword.html')
 
+
 def studentHome(request):
     try:
         # Step 1: Get UID of the current user from the Student table

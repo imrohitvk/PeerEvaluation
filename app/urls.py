@@ -25,4 +25,11 @@ urlpatterns = [
     path('StudentHome/', studentHome),
     path('studentEval/<str:doc_id>/<str:eval_id>/', studentEval, name='studentEval'),
     path('send_email/', send_reminder_mail, name='send_reminder_mail'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Serve media files if DEBUG is True (development mode)
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Serve static files using staticfiles_urlpatterns
+urlpatterns += staticfiles_urlpatterns()
