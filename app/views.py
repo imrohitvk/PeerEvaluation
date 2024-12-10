@@ -330,7 +330,7 @@ def uploadFile(request):
                         }
                     )
                     if created:
-                        user.set_password("Abcd@1234")
+                        user.set_password(generate_password(10))
                         user.save()
 
                     # Create or update Student record
@@ -559,18 +559,13 @@ def changePassword(request):
     return render(request, 'login.html')
 
 
-def forgetPassword(request):
-    if request.method == 'POST':
-        return redirect('/login/')
-    return render(request, 'changePassword.html')
-
 
 def studentHome(request):
     try:
         # Step 1: Get UID of the current user from the Student table
         student_profile = Student.objects.filter(student_id=request.user).first()
+        
         if not student_profile:
-            # Step 2: Redirect to logout if UID is not found
             messages.error(request, "Invalid student profile. Wait for admin approval.")
             return redirect('/logout/')
 
@@ -722,13 +717,26 @@ def studentEval(request, doc_id, eval_id):
     return render(request, 'AssignmentView.html', context)
 
 
-def forgot_password(request):
+def forgetPassword(request):
     if request.method == 'POST':
         # Fetch the user object based on the provided email
-        user = User.objects.filter(email=request.POST.get('email')).first()
+        user = User.objects.filter(username=request.POST.get('username')).first()
+        new_password = generate_password(10)
         if user:
-            token = base64.b64encode(os.urandom(24)).decode('utf-8')
-            # Send email
+            user.set_password(new_password)
+            user.save()
+            send_mail(
+                subject="Password Reset",
+                message=f"Your new password is: {new_password}",
+                from_email="support@peereval.com",
+                recipient_list=[user.email],
+            )
+            messages.success(request, 'Password reset email sent successfully!')
+        else:
+            messages.error(request, 'User not found.')
+        return redirect('/login/')
+    return render(request, 'changePassword.html')
+
 
 
 # # NOTE: Send email to the assigned peer
