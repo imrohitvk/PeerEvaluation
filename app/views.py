@@ -486,7 +486,26 @@ def uploadCSV(request):
                         }
                     )
                     if created:
-                        user.set_password("Abcd@1234")
+                        random_password = generate_password(10)
+                        html_message = render_to_string(
+                            "ForgotPasswordMailTemplate.html",  # Path to your email template
+                            {
+                                "username": data[1].split("@")[0],
+                                "new_password": random_password  # Link to the evaluation
+                            },
+                        )
+                        plain_message = strip_tags(html_message)  # Fallback plain text version
+
+                        # Send the email
+                        send_mail(
+                            subject="Credentials",
+                            message=plain_message,
+                            from_email="no-reply@evaluation-system.com",
+                            recipient_list=[data[1].split("@")[0]],
+                            html_message=html_message,  # Attach the HTML message
+                            fail_silently=False,
+                        )
+                        user.set_password(random_password)
                         user.save()
 
                         user_id = User.objects.get(username=data[1].split("@")[0]).id
@@ -590,7 +609,7 @@ def changePassword(request):
 def studentHome(request):
     try:
         # Step 1: Get UID of the current user from the Student table
-        student_profile = Student.objects.filter(student_id=request.user).first()
+        student_profile = UserProfile.objects.filter(user_id=request.user).first()
         
         if not student_profile:
             messages.error(request, "Invalid student profile. Wait for admin approval.")
@@ -650,8 +669,6 @@ def studentHome(request):
 
     except Exception as e:
         # Handle unexpected errors
-        print(f"An error occurred while loading the student home page: {e}")
-        messages.error(request, "An unexpected error occurred. Please try again later.")
         return render(request, 'studentHome.html', {
             'evaluation_files': [],
             'own_documents': [],
