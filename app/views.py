@@ -29,6 +29,10 @@ import array
 
 base_url = "http://127.0.0.1:8080/"
 
+# Regex for validating a strong password
+PASSWORD_REGEX = r"^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+
+
 def generate_password(length):
     MAX_LEN = 12
 
@@ -454,6 +458,15 @@ def uploadCSV(request):
         # Remove the first row (header)
         lines.pop(0)
 
+        # Delete all physical files associated with documents
+        documents_to_delete = documents.objects.all()
+        for doc in documents_to_delete:
+            if doc.file and os.path.isfile(doc.file.path):  # Check if file exists
+                try:
+                    os.remove(doc.file.path)  # Delete the file from the file system
+                except Exception as e:
+                    print(f"Error deleting file {doc.file.path}: {e}")
+
         # Delete all existing Student and document records
         documents.objects.all().delete()
         Student.objects.all().delete()
@@ -621,6 +634,7 @@ def studentHome(request):
             'evaluation_files': [],
             'own_documents': [],
         })
+
 
 # NOTE: view and evaluate the assignment
 def studentEval(request, doc_id, eval_id):
