@@ -636,6 +636,28 @@ def studentHome(request):
         })
 
 
+def deleteDocs(request):
+    current_user_profile = UserProfile.objects.filter(user=request.user).first()
+    if not current_user_profile or current_user_profile.role not in ['TA', 'Teacher', 'Admin']:
+        messages.error(request, 'You do not have permission to modify roles.')
+        return redirect(f"/{current_user_profile.role}Home/")
+    # Delete all physical files associated with documents
+    documents_to_delete = documents.objects.all()
+    for doc in documents_to_delete:
+        if doc.file and os.path.isfile(doc.file.path):  # Check if file exists
+            try:
+                os.remove(doc.file.path)  # Delete the file from the file system
+            except Exception as e:
+                print(f"Error deleting file {doc.file.path}: {e}")
+                messages.error(request, f"Error deleting file {doc.file.path}.")
+    # Delete all existing Student and document records
+    documents.objects.all().delete()
+    Student.objects.all().delete()
+    PeerEvaluation.objects.all().delete()
+    messages.success(request, 'All documents deleted successfully!')
+    return redirect(f"/{current_user_profile.role}Home/")
+
+
 # NOTE: view and evaluate the assignment
 def studentEval(request, doc_id, eval_id):
     # Parse document and evaluator IDs
@@ -737,6 +759,11 @@ def forgot_password(request):
 
 
 def send_reminder_mail(request):
+    current_user_profile = UserProfile.objects.filter(user=request.user).first()
+    if not current_user_profile or current_user_profile.role not in ['TA', 'Teacher', 'Admin']:
+        messages.error(request, 'You do not have permission to modify roles.')
+        return redirect(f"/{current_user_profile.role}Home/")
+    
     # Fetch PeerEvaluation entries where 'evaluated' is False
     pending_evaluations = PeerEvaluation.objects.filter(evaluated=False)
 
@@ -768,9 +795,7 @@ def send_reminder_mail(request):
                 messages.error(request, f"Error sending email to {email}: {e}")
     
     # Display a success message on the frontend
-    messages.success(request, "Reminder emails sent successfully!")
-    current_user_profile = UserProfile.objects.filter(user=request.user).first()
-    
+    messages.success(request, "Reminder emails sent successfully!")    
     return redirect(f"/{current_user_profile.role}Home/")
 
 
