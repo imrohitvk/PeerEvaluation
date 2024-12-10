@@ -267,7 +267,7 @@
                         </div>
                     </div>
 
-                    <!-- Accordion Item 2 -->
+                    <!-- Reset Password Option -->
                     <div class="border-b border-slate-200">
                         <button onclick="toggleAccordion(2)"
                             class="w-full flex justify-between items-center py-5 text-slate-800">
@@ -329,6 +329,7 @@
                                             Login</a>
                                     </div>
                                 </div>
+
                             </div>
                         </div>
                     </div>
@@ -338,6 +339,7 @@
         </div>
 
     </div>
+    
 
     <script>
         // Select all menu items and content sections
@@ -386,7 +388,38 @@
                 icon.innerHTML = minusSVG;
             }
         }
-    </script>
+    
+        function toggleAccordion(accordionNumber) {
+            // Get all accordion contents
+            const allContents = document.querySelectorAll('[id^="content-"]');
+            // Get all icons
+            const allIcons = document.querySelectorAll('[id^="icon-"]');
+        
+            allContents.forEach(content => {
+                if (content.id === `content-${accordionNumber}`) {
+                    // Toggle the selected accordion
+                    if (content.style.maxHeight && content.style.maxHeight !== "0px") {
+                        content.style.maxHeight = "0px";
+                    } else {
+                        content.style.maxHeight = content.scrollHeight + "px";
+                    }
+                } else {
+                    // Close other accordions
+                    content.style.maxHeight = "0px";
+                }
+            });
+        
+            allIcons.forEach(icon => {
+                if (icon.id === `icon-${accordionNumber}`) {
+                    // Toggle the rotation class
+                    icon.classList.toggle('rotate-45');
+                } else {
+                    // Remove rotation from other icons
+                    icon.classList.remove('rotate-45');
+                }
+            });
+        }
+        </script>
 </body>
 
 </html>
