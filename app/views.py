@@ -789,16 +789,28 @@ def forgetPassword(request):
     if request.method == 'POST':
         # Fetch the user object based on the provided email
         user = User.objects.filter(username=request.POST.get('username')).first()
-        new_password = generate_password(10)
         if user:
-            user.set_password(new_password)
-            user.save()
-            send_mail(
-                subject="Password Reset",
-                message=f"Your new password is: {new_password}",
-                from_email="support@peereval.com",
-                recipient_list=[user.email],
+            random_password = generate_password(10)
+            html_message = render_to_string(
+                "ForgotPasswordMailTemplate.html",  # Path to your email template
+                {
+                    "username": user.username,
+                    "new_password": random_password  # Link to the evaluation
+                },
             )
+            plain_message = strip_tags(html_message)  # Fallback plain text version
+
+            # Send the email
+            send_mail(
+                subject="Credentials",
+                message=plain_message,
+                from_email="no-reply@evaluation-system.com",
+                recipient_list=[user.email],
+                html_message=html_message,  # Attach the HTML message
+                fail_silently=False,
+            )
+            user.set_password(random_password)
+            user.save()
             messages.success(request, 'Password reset email sent successfully!')
         else:
             messages.error(request, 'User not found.')
