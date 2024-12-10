@@ -242,12 +242,22 @@ def TAHome(request):
             document.save()
             document_instances.append(document)
 
-        # Call setPeerEval function only once with the collected document instances
-        if document_instances:
-            setPeerEval(document_instances)
+        # Background thread function for calling setPeerEval
+        def run_peer_eval(documents):
+            try:
+                setPeerEval(documents)
+            except Exception as e:
+                # Log the error and notify the admin (adjust logging as per your project setup)
+                error_message = f"Error in Peer Evaluation assignment: {str(e)}"
+                print(error_message)  # Replace with a logging system if available
 
-        messages.success(request, 'Documents uploaded and Peer evaluations assigned successfully!')
-        return redirect('/TAHome/')
+        # Start the thread for setPeerEval
+        if document_instances:
+            thread = threading.Thread(target=run_peer_eval, args=(document_instances,))
+            thread.start()
+
+        messages.success(request, 'Documents uploaded successfully! Peer evaluations are being assigned in the background.')
+        return redirect('/AdminHome/')
 
     return render(request, 'TAHome.html', {'users': user_profile.serialize()})
 
@@ -290,12 +300,22 @@ def TeacherHome(request):
             document.save()
             document_instances.append(document)
 
-        # Call setPeerEval function only once with the collected document instances
-        if document_instances:
-            setPeerEval(document_instances)
+        # Background thread function for calling setPeerEval
+        def run_peer_eval(documents):
+            try:
+                setPeerEval(documents)
+            except Exception as e:
+                # Log the error and notify the admin (adjust logging as per your project setup)
+                error_message = f"Error in Peer Evaluation assignment: {str(e)}"
+                print(error_message)  # Replace with a logging system if available
 
-        messages.success(request, 'Documents uploaded and Peer evaluations assigned successfully!')
-        return redirect('/TeacherHome/')
+        # Start the thread for setPeerEval
+        if document_instances:
+            thread = threading.Thread(target=run_peer_eval, args=(document_instances,))
+            thread.start()
+
+        messages.success(request, 'Documents uploaded successfully! Peer evaluations are being assigned in the background.')
+        return redirect('/AdminHome/')
 
     return render(request, 'TeacherHome.html', {'users': user_profile.serialize()})
 
@@ -330,7 +350,7 @@ def uploadFile(request):
                         }
                     )
                     if created:
-                        user.set_password("Abcd@1234")
+                        user.set_password(generate_password(10))
                         user.save()
 
                     # Create or update Student record
@@ -486,7 +506,26 @@ def uploadCSV(request):
                         }
                     )
                     if created:
-                        user.set_password("Abcd@1234")
+                        random_password = generate_password(10)
+                        html_message = render_to_string(
+                            "ForgotPasswordMailTemplate.html",  # Path to your email template
+                            {
+                                "username": data[1].split("@")[0],
+                                "new_password": random_password  # Link to the evaluation
+                            },
+                        )
+                        plain_message = strip_tags(html_message)  # Fallback plain text version
+
+                        # Send the email
+                        send_mail(
+                            subject="Credentials",
+                            message=plain_message,
+                            from_email="no-reply@evaluation-system.com",
+                            recipient_list=[data[1].split("@")[0]],
+                            html_message=html_message,  # Attach the HTML message
+                            fail_silently=False,
+                        )
+                        user.set_password(random_password)
                         user.save()
 
                         user_id = User.objects.get(username=data[1].split("@")[0]).id
@@ -586,18 +625,12 @@ def changePassword(request):
     return render(request, 'login.html')  # Ensure this renders the correct template
 
 
-def forgetPassword(request):
-    if request.method == 'POST':
-        return redirect('/login/')
-    return render(request, 'changePassword.html')
-
-
 def studentHome(request):
     try:
         # Step 1: Get UID of the current user from the Student table
-        student_profile = Student.objects.filter(student_id=request.user).first()
+        student_profile = UserProfile.objects.filter(user_id=request.user).first()
+        
         if not student_profile:
-            # Step 2: Redirect to logout if UID is not found
             messages.error(request, "Invalid student profile. Wait for admin approval.")
             return redirect('/logout/')
 
@@ -655,12 +688,32 @@ def studentHome(request):
 
     except Exception as e:
         # Handle unexpected errors
-        print(f"An error occurred while loading the student home page: {e}")
-        messages.error(request, "An unexpected error occurred. Please try again later.")
         return render(request, 'studentHome.html', {
             'evaluation_files': [],
             'own_documents': [],
         })
+
+
+def deleteDocs(request):
+    current_user_profile = UserProfile.objects.filter(user=request.user).first()
+    if not current_user_profile or current_user_profile.role not in ['TA', 'Teacher', 'Admin']:
+        messages.error(request, 'You do not have permission to modify roles.')
+        return redirect(f"/{current_user_profile.role}Home/")
+    # Delete all physical files associated with documents
+    documents_to_delete = documents.objects.all()
+    for doc in documents_to_delete:
+        if doc.file and os.path.isfile(doc.file.path):  # Check if file exists
+            try:
+                os.remove(doc.file.path)  # Delete the file from the file system
+            except Exception as e:
+                print(f"Error deleting file {doc.file.path}: {e}")
+                messages.error(request, f"Error deleting file {doc.file.path}.")
+    # Delete all existing Student and document records
+    documents.objects.all().delete()
+    Student.objects.all().delete()
+    PeerEvaluation.objects.all().delete()
+    messages.success(request, 'All documents deleted successfully!')
+    return redirect(f"/{current_user_profile.role}Home/")
 
 
 # NOTE: view and evaluate the assignment
@@ -727,13 +780,26 @@ def studentEval(request, doc_id, eval_id):
     return render(request, 'AssignmentView.html', context)
 
 
-def forgot_password(request):
+def forgetPassword(request):
     if request.method == 'POST':
         # Fetch the user object based on the provided email
-        user = User.objects.filter(email=request.POST.get('email')).first()
+        user = User.objects.filter(username=request.POST.get('username')).first()
+        new_password = generate_password(10)
         if user:
-            token = base64.b64encode(os.urandom(24)).decode('utf-8')
-            # Send email
+            user.set_password(new_password)
+            user.save()
+            send_mail(
+                subject="Password Reset",
+                message=f"Your new password is: {new_password}",
+                from_email="support@peereval.com",
+                recipient_list=[user.email],
+            )
+            messages.success(request, 'Password reset email sent successfully!')
+        else:
+            messages.error(request, 'User not found.')
+        return redirect('/login/')
+    return render(request, 'changePassword.html')
+
 
 
 # # NOTE: Send email to the assigned peer
@@ -764,6 +830,11 @@ def forgot_password(request):
 
 
 def send_reminder_mail(request):
+    current_user_profile = UserProfile.objects.filter(user=request.user).first()
+    if not current_user_profile or current_user_profile.role not in ['TA', 'Teacher', 'Admin']:
+        messages.error(request, 'You do not have permission to modify roles.')
+        return redirect(f"/{current_user_profile.role}Home/")
+    
     # Fetch PeerEvaluation entries where 'evaluated' is False
     pending_evaluations = PeerEvaluation.objects.filter(evaluated=False)
 
@@ -795,14 +866,13 @@ def send_reminder_mail(request):
                 messages.error(request, f"Error sending email to {email}: {e}")
     
     # Display a success message on the frontend
-    messages.success(request, "Reminder emails sent successfully!")
-    current_user_profile = UserProfile.objects.filter(user=request.user).first()
-    
+    messages.success(request, "Reminder emails sent successfully!")    
     return redirect(f"/{current_user_profile.role}Home/")
 
 
 def home(request):
     return redirect('/login/')
+
 
 def logout_user(request):
     logout(request)
