@@ -207,6 +207,9 @@
                         <!-- Marks Distribution -->
                         <div class="w-full bg-white p-6 rounded-lg shadow-md">
                             <h2 class="text-xl font-bold text-gray-800 mb-4">Marks Distribution</h2>
+                            <label for="maxMarks">Enter Maximum Marks:</label>
+                            <input type="number" id="maxMarks" placeholder="e.g., 100">
+                            <button onclick="generateHistogram()">Generate Histogram</button>
                             <canvas id="scoreHistogram" width="400" height="200"></canvas>
                                                     
                         </div>
@@ -266,6 +269,14 @@
                         <input type="number" id="num-questions" name="num-questions"
                             class="border border-gray-300 rounded-lg p-2 w-full"
                             placeholder="Enter the number of questions" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="total_marks" class="block text-gray-700 font-semibold mb-2">Number of
+                            Total Marks:</label>
+                        <input type="total_marks" id="total_marks" name="total_marks"
+                            class="border border-gray-300 rounded-lg p-2 w-full"
+                            placeholder="Enter total marks" required>
                     </div>
 
                     <!-- Submit Button -->
@@ -465,85 +476,86 @@
 
     </script>
     <script>
-        // Data passed from the backend (Django) via context
         const analyticsData = {{ analytics_data|safe }};
         const topScores = analyticsData.top_students_scores;
-    
-        // Extract average scores from the topScores
+
+        // Extract average scores
         const avgScores = topScores.map(item => item.avg_score);
-    
-        // Define score ranges
-        const scoreRanges = [
-            { min: 0, max: 10, label: '0-10', count: 0 },
-            { min: 10, max: 20, label: '10-20', count: 0 },
-            { min: 20, max: 30, label: '20-30', count: 0 },
-            { min: 30, max: 40, label: '30-40', count: 0 },
-            { min: 40, max: 50, label: '40-50', count: 0 },
-        ];
-    
-        // Count the number of documents in each range
-        avgScores.forEach(score => {
-            scoreRanges.forEach(range => {
-                if (score >= range.min && score < range.max) {
-                    range.count += 1;
-                }
+
+        function generateHistogram() {
+            // Get user input for max marks
+            const maxMarksInput = document.getElementById('maxMarks').value;
+            const maxMarks = parseInt(maxMarksInput);
+
+            if (isNaN(maxMarks) || maxMarks <= 0) {
+                alert("Please enter a valid maximum marks value.");
+                return;
+            }
+
+            // Divide the range into 10 quartiles
+            const step = maxMarks / 10;
+            const scoreRanges = Array.from({ length: 10 }, (_, i) => ({
+                min: i * step,
+                max: (i + 1) * step,
+                label: `${Math.floor(i * step)}-${Math.floor((i + 1) * step)}`,
+                count: 0,
+            }));
+
+            // Count the number of documents in each range
+            avgScores.forEach(score => {
+                scoreRanges.forEach(range => {
+                    if (score >= range.min && score < range.max) {
+                        range.count += 1;
+                    }
+                });
             });
-        });
-    
-        // Limit to approximately 20 documents in total
-        const totalDocuments = avgScores.length;
-        if (totalDocuments > 20) {
-            const scaleFactor = 20 / totalDocuments;
-            scoreRanges.forEach(range => {
-                range.count = Math.round(range.count * scaleFactor);
-            });
-        }
-    
-        // Extract labels and counts for the chart
-        const labels = scoreRanges.map(range => range.label);
-        const counts = scoreRanges.map(range => range.count);
-    
-        // Render the histogram
-        const ctx = document.getElementById('scoreHistogram').getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels, // Score ranges as labels
-                datasets: [{
-                    label: 'Number of Students',
-                    data: counts, // Adjusted number of documents in each range
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)', // Light green background
-                    borderColor: 'rgba(75, 192, 192, 1)', // Green border
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Number of Students'
+
+            // Extract labels and counts
+            const labels = scoreRanges.map(range => range.label);
+            const counts = scoreRanges.map(range => range.count);
+
+            // Render the histogram
+            const ctx = document.getElementById('scoreHistogram').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels, // Score ranges as labels
+                    datasets: [{
+                        label: 'Number of Documents',
+                        data: counts, // Number of documents in each range
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)', // Light green background
+                        borderColor: 'rgba(75, 192, 192, 1)', // Green border
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Documents'
+                            },
+                            ticks: {
+                                stepSize: 1 // Ensure y-axis has whole number ticks
+                            }
                         },
-                        ticks: {
-                            stepSize: 1 // Ensure y-axis has whole number ticks
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Score Range'
+                            }
                         }
                     },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Score Range'
+                    plugins: {
+                        legend: {
+                            display: false // Hide legend for simplicity
                         }
                     }
-                },
-                plugins: {
-                    legend: {
-                        display: false // Hide legend for simplicity
-                    }
                 }
-            }
-        });
+            });
+        }
     </script>
     
     
