@@ -273,6 +273,7 @@ def TeacherHome(request):
     if not user_profile or user_profile.role != 'Teacher' or not request.user.is_authenticated:
         messages.error(request, 'Permission denied')
         return redirect('/login/')
+    
 
     if request.method == 'POST':
         # Handle document upload logic
@@ -320,19 +321,21 @@ def TeacherHome(request):
 
     # Analytics for Teacher Dashboard
 
+
+
     try:
-        # Distribution of marks for students
+        # Distribution of marks for students: Group by document_id and calculate average score
         marks_distribution = (
-            PeerEvaluation.objects.values('score')
-            .annotate(count=Count('score'))
-            .order_by('score')
+            PeerEvaluation.objects.values('document_id')
+            .annotate(avg_score=Avg('score'))
+            .order_by('-avg_score')[:10]  # Get top 10 documents based on avg_score
         )
 
-        # Fetch top 10 students' marks
-        top_students_scores = (
-            PeerEvaluation.objects.order_by('-score')
-            .values_list('score', flat=True)[:10]
-        )
+        # Fetch top 10 documents' scores as a list of dictionaries
+        top_students_scores = [
+            {"document_id": item["document_id"], "avg_score": float(item["avg_score"])}  # Convert to float
+            for item in marks_distribution
+        ]
         
         # Total peer evaluations and their status
         total_peer_evaluations = PeerEvaluation.objects.count()
@@ -350,8 +353,7 @@ def TeacherHome(request):
 
         # Data for rendering
         analytics_data = {
-            'marks_distribution': list(marks_distribution),
-            'top_students_scores': list(top_students_scores),  # Add top 10 students' scores
+            'top_students_scores': top_students_scores,  # Add top 10 students' scores
             'total_documents': total_documents,
             'total_peer_evaluations': peer_evaluations['total'],
             'evaluated_peer_evaluations': peer_evaluations['evaluated'],
@@ -361,18 +363,21 @@ def TeacherHome(request):
         # Handle unexpected errors
         print(f"Error fetching analytics: {e}")
         analytics_data = {
-            'marks_distribution': [],
             'top_students_scores': [],  # Default empty list
             'total_documents': 0,
             'total_peer_evaluations': 0,
             'evaluated_peer_evaluations': 0,
             'pending_peer_evaluations': 0,
         }
+    print("Analytics Data:", analytics_data)
 
     return render(request, 'TeacherHome.html', {
         'users': user_profile.serialize(),
         'analytics_data': analytics_data,
     })
+
+    
+
 # NOTE: This is route for uploading bunch of PDF Files and creating the users
 def uploadFile(request):
     user_profile = UserProfile.objects.filter(user=user).first()
@@ -946,3 +951,4 @@ def home(request):
 def logout_user(request):
     logout(request)
     return redirect('/login/')
+

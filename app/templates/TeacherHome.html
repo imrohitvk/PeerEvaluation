@@ -9,6 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <script src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body class="bg-gray-100 font-sans">
@@ -206,7 +207,8 @@
                         <!-- Marks Distribution -->
                         <div class="w-full bg-white p-6 rounded-lg shadow-md">
                             <h2 class="text-xl font-bold text-gray-800 mb-4">Marks Distribution</h2>
-                            <canvas id="histogram" width="400" height="200"></canvas>
+                            <canvas id="scoreHistogram" width="400" height="200"></canvas>
+                                                    
                         </div>
                     </div>
                 </div>
@@ -407,9 +409,9 @@
         </div>
 
     </div>
-    
 
-    <script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script >
         // Select all menu items and content sections
         const menuItems = document.querySelectorAll('.menu-item');
         const contentSections = document.querySelectorAll('.content-section');
@@ -459,44 +461,93 @@
                     icon.classList.remove('rotate-45');
                 }
             });
+        }    
+
+    </script>
+    <script>
+        // Data passed from the backend (Django) via context
+        const analyticsData = {{ analytics_data|safe }};
+        const topScores = analyticsData.top_students_scores;
+    
+        // Extract average scores from the topScores
+        const avgScores = topScores.map(item => item.avg_score);
+    
+        // Define score ranges
+        const scoreRanges = [
+            { min: 0, max: 10, label: '0-10', count: 0 },
+            { min: 10, max: 20, label: '10-20', count: 0 },
+            { min: 20, max: 30, label: '20-30', count: 0 },
+            { min: 30, max: 40, label: '30-40', count: 0 },
+            { min: 40, max: 50, label: '40-50', count: 0 },
+        ];
+    
+        // Count the number of documents in each range
+        avgScores.forEach(score => {
+            scoreRanges.forEach(range => {
+                if (score >= range.min && score < range.max) {
+                    range.count += 1;
+                }
+            });
+        });
+    
+        // Limit to approximately 20 documents in total
+        const totalDocuments = avgScores.length;
+        if (totalDocuments > 20) {
+            const scaleFactor = 20 / totalDocuments;
+            scoreRanges.forEach(range => {
+                range.count = Math.round(range.count * scaleFactor);
+            });
         }
-
-        // Assume `analyticsData` is passed to the template and contains `top_students_scores`
-        const topStudentsScores = JSON.parse('{{ analytics_data.top_students_scores|safe }}');
-
-        // Prepare labels and data for histogram
-        const labels = Array.from({ length: topStudentsScores.length }, (_, i) => i + 1); // Rank 1 to 10
-        const data = topStudentsScores;
-
-        const ctx = document.getElementById('histogram').getContext('2d');
-        const chart = new Chart(ctx, {
+    
+        // Extract labels and counts for the chart
+        const labels = scoreRanges.map(range => range.label);
+        const counts = scoreRanges.map(range => range.count);
+    
+        // Render the histogram
+        const ctx = document.getElementById('scoreHistogram').getContext('2d');
+        new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels, // Replace with ranks 1-10
+                labels: labels, // Score ranges as labels
                 datasets: [{
-                    label: 'Marks of Top 10 Students',
-                    data: data,  // Replace with scores
+                    label: 'Number of Students',
+                    data: counts, // Adjusted number of documents in each range
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)', // Light green background
+                    borderColor: 'rgba(75, 192, 192, 1)', // Green border
+                    borderWidth: 1
                 }]
             },
             options: {
+                responsive: true,
                 scales: {
-                    xAxes: [{
-                        display: true,
-                        barPercentage: 0.9,
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Students'
+                        },
                         ticks: {
-                            max: 10,  // Show 10 ranks
+                            stepSize: 1 // Ensure y-axis has whole number ticks
                         }
-                    }],
-                    yAxes: [{
-                        ticks: {
-                            beginAtZero: true
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Score Range'
                         }
-                    }]
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false // Hide legend for simplicity
+                    }
                 }
             }
         });
+    </script>
+    
+    
 
-        </script>
 </body>
 
 </html>
