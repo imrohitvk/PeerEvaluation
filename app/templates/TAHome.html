@@ -127,6 +127,44 @@
                 </table>
             </div>
 
+            <!-- Pre Evaluation Section -->
+            <div id="upload-data" class="content-section hidden bg-white p-6 rounded-lg shadow-md mb-6">
+
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Upload Data</h2>
+                <p class="text-gray-700 mb-4">You can upload files here:</p>
+
+                <!-- Upload Section for CSV File -->
+                <div class="mb-6">
+                    <form action="/uploadCSV/" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <label for="csv-upload" class="block text-gray-800 font-semibold mb-2">Upload a CSV
+                            File:</label>
+                        <input type="file" id="csv-upload" name="csv-upload" accept=".csv"
+                            class="block w-full p-2 border border-gray-300 rounded-md" required>
+                        <p class="text-sm text-gray-500 mt-2">Please upload a single CSV file.</p>
+                        <button id="submit-csv"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-4">Submit CSV
+                            File</button>
+                    </form>
+                </div>
+
+                <!-- Upload Section for Multiple PDFs -->
+                <div>
+                    <form action="/TeacherHome/" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <label for="pdf-upload" class="block text-gray-800 font-semibold mb-2">Upload Multiple PDF
+                            Files:</label>
+                        <input type="file" id="pdf-upload" name="doc" accept=".pdf" multiple
+                            class="block w-full p-2 border border-gray-300 rounded-md doc" required>
+                        <p class="text-sm text-gray-500 mt-2">You can select multiple PDF files to upload.</p>
+                        <button id="submit-pdf"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-4">Submit PDF
+                            Files</button>
+                    </form>
+                </div>
+            </div>
+
+
             <!-- Analytics Section -->
             <div id="analytics" class="content-section bg-white p-6 rounded-lg shadow-md mb-6">
                 <!-- Cards Section -->
@@ -177,87 +215,68 @@
                 </div>
 
                 <!-- Detailed Analytics and Marks Distribution -->
-                <div class="container mx-auto mt-6">
-                    <div class="flex flex-wrap lg:flex-nowrap gap-6">
-
-                        <!-- Marks Distribution -->
-                        <div class="w-full bg-white p-6 rounded-lg shadow-md">
-                            <h2 class="text-xl font-bold text-gray-800 mb-4">Marks Distribution</h2>
-                            <canvas id="histogram" width="400" height="200"></canvas>
-                        </div>
+                <!-- Detailed Analytics and Marks Distribution -->
+                <div class="w-full bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">Marks Distribution</h2>
+                        <button 
+                            onclick="generateHistogram()" 
+                            class="px-6 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                            Generate Histogram
+                        </button>
+                    </div>
+                    
+                    <div class="relative w-full h-auto overflow-hidden">
+                        <canvas id="scoreHistogram" class="max-w-full h-80"></canvas>
                     </div>
                 </div>
             </div>
-
-            <!-- Pre Evaluation Section -->
-            <div id="upload-data" class="content-section hidden bg-white p-6 rounded-lg shadow-md mb-6">
-
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Upload Data</h2>
-                <p class="text-gray-700 mb-4">You can upload files here:</p>
-
-                <!-- Upload Section for CSV File -->
-                <div class="mb-6">
-                    <form action="/uploadCSV/" method="post" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        <label for="csv-upload" class="block text-gray-800 font-semibold mb-2">Upload a CSV
-                            File:</label>
-                        <input type="file" id="csv-upload" name="csv-upload" accept=".csv"
-                            class="block w-full p-2 border border-gray-300 rounded-md" required>
-                        <p class="text-sm text-gray-500 mt-2">Please upload a single CSV file.</p>
-                        <button id="submit-csv"
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-4">Submit CSV
-                            File</button>
-                    </form>
-                </div>
-
-                <!-- Upload Section for Multiple PDFs -->
-                <div>
-                    <form action="/TeacherHome/" method="post" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        <label for="pdf-upload" class="block text-gray-800 font-semibold mb-2">Upload Multiple PDF
-                            Files:</label>
-                        <input type="file" id="pdf-upload" name="doc" accept=".pdf" multiple
-                            class="block w-full p-2 border border-gray-300 rounded-md doc" required>
-                        <p class="text-sm text-gray-500 mt-2">You can select multiple PDF files to upload.</p>
-                        <button id="submit-pdf"
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-4">Submit PDF
-                            Files</button>
-                    </form>
-                </div>
-            </div>
-
+            
             <!-- Role Manager Section -->
-            <div id="role-manager" class="content-section hidden bg-white p-6 rounded-lg shadow-md mb-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Role Manager</h2>
-                <p class="text-gray-700 mb-4">Manage roles and permissions here.</p>
+            <div id="role-manager" class="content-section hidden bg-white p-8 rounded-lg shadow-lg mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Role Manager</h2>
+                <p class="text-gray-600 mb-6">Manage roles and permissions here.</p>
 
                 <!-- Form to manage roles -->
-                <form id="role-manager-form" method="POST" action="/change_role/">
+                <form id="role-manager-form" method="POST" action="/change_role/" class="space-y-6">
                     {% csrf_token %}
+
                     <!-- Username Input -->
-                    <div class="mb-4">
+                    <div>
                         <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-                        <input type="text" id="username" name="username"
-                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Enter username" required>
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            class="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter username"
+                            required
+                        >
                     </div>
 
                     <!-- User Role Selection -->
-                    <div class="mb-4">
+                    <div>
                         <label for="role" class="block text-sm font-medium text-gray-700">User Role</label>
-                        <select id="role" name="role"
-                            class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required>
-                            <option value="">Select Role</option>
+                        <select
+                            id="role"
+                            name="role"
+                            class="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                        >
+                            <option value="" disabled selected>Select Role</option>
                             <option value="TA">TA</option>
                             <option value="Student">Student</option>
                         </select>
                     </div>
 
                     <!-- Submit Button -->
-                    <div>
-                        <button type="submit"
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md transition-all">Submit</button>
+                    <div class="flex justify-end">
+                        <button
+                            type="submit"
+                            class="bg-blue-500 hover:bg-blue-600 text-white font-medium px-6 py-3 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                        >
+                            Submit
+                        </button>
                     </div>
                 </form>
             </div>
@@ -461,6 +480,94 @@
                 }
             });
         }
+
+        const analyticsData = {{ analytics_data|safe }};
+        const topScores = analyticsData.top_students_scores;
+        // Extract average scores
+        const avgScores = topScores.map(item => item.avg_score);
+        function generateHistogram() {
+        const maxMarksInput = {{ num_ques|safe }};
+        const maxMarks = parseInt(maxMarksInput);
+
+        if (isNaN(maxMarks) || maxMarks <= 0) {
+            alert("Please enter a valid maximum marks value.");
+            return;
+        }
+
+        const step = maxMarks / 10;
+        const scoreRanges = Array.from({ length: 10 }, (_, i) => ({
+            min: i * step,
+            max: (i + 1) * step,
+            label: `${Math.floor(i * step)}-${Math.floor((i + 1) * step)}`,
+            count: 0,
+        }));
+
+        avgScores.forEach((score) => {
+            scoreRanges.forEach((range) => {
+                if (score >= range.min && score < range.max) {
+                    range.count += 1;
+                }
+            });
+        });
+
+        const labels = scoreRanges.map((range) => range.label);
+        const counts = scoreRanges.map((range) => range.count);
+
+        const ctx = document.getElementById("scoreHistogram").getContext("2d");
+        new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: "Number of Documents",
+                        data: counts,
+                        backgroundColor: "rgba(75, 192, 192, 0.5)",
+                        borderColor: "rgba(75, 192, 192, 1)",
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: "Number of Documents",
+                            font: {
+                                size: 14,
+                            },
+                        },
+                        ticks: {
+                            stepSize: 1,
+                            color: "#4a5568",
+                        },
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Score Range",
+                            font: {
+                                size: 14,
+                            },
+                        },
+                        ticks: {
+                            color: "#4a5568",
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                },
+            },
+        });
+    }
     </script>
 </body>
 

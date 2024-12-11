@@ -262,17 +262,25 @@ def TAHome(request):
 
     # Analytics for Teacher Dashboard
     try:
-        # Distribution of marks for students
+        # Distribution of marks for students: Group by document_id and calculate average score
         marks_distribution = (
-            PeerEvaluation.objects.values('score')
-            .annotate(count=Count('score'))
-            .order_by('score')
+            PeerEvaluation.objects.values('document_id')
+            .annotate(avg_score=Avg('score'))
+            .order_by('-avg_score')[:10]  # Get top 10 documents based on avg_score
         )
 
+        # Fetch top 10 documents' scores as a list of dictionaries
+        top_students_scores = [
+            {"document_id": item["document_id"], "avg_score": float(item["avg_score"])}  # Convert to float
+            for item in marks_distribution
+        ]
+        
         # Total peer evaluations and their status
         total_peer_evaluations = PeerEvaluation.objects.count()
         evaluated_peer_evaluations = PeerEvaluation.objects.filter(evaluated=True).count()
         pending_peer_evaluations = PeerEvaluation.objects.filter(evaluated=False).count()
+
+        num_ques = numberOfQuestions.objects.all().first().total_marks
 
         peer_evaluations = {
             'total': total_peer_evaluations,
@@ -283,41 +291,37 @@ def TAHome(request):
         # Number of documents submitted
         total_documents = documents.objects.count()
 
-        tickets_raised = PeerEvaluation.objects.filter(Q(ticket=1) | Q(evaluated=0))
+        tickets_raised = PeerEvaluation.objects.filter(ticket=2)
 
         # Data for rendering
         analytics_data = {
-            'marks_distribution': list(marks_distribution),
+            'top_students_scores': top_students_scores,  # Add top 10 students' scores
             'total_documents': total_documents,
             'total_peer_evaluations': peer_evaluations['total'],
             'evaluated_peer_evaluations': peer_evaluations['evaluated'],
             'pending_peer_evaluations': peer_evaluations['pending'],
             'tickets_raised': [
                 {
-                    'id': ticket.id,
                     'evaluator': Student.objects.filter(uid=ticket.evaluator_id).first().student_id.username,
                     'document': documents.objects.filter(id=ticket.document_id).first().file.url,
-                    'evaluation': " ".join([str(i) for i in eval(ticket.evaluation)]),
+                    'evaluation': ".".join([str(i) for i in eval(ticket.evaluation)]),
                     'evaluation_sheet': f"{base_url}studentEval/{ticket.document_id}/{ticket.evaluator_id}/",
-                    'evaluated': ticket.evaluated,
-                    'ticket': ticket.ticket
                 } for ticket in tickets_raised
             ]
         }
-
     except Exception as e:
-        # Handle unexpected errors
-        print(f"Error fetching analytics: {e}")
         analytics_data = {
-            'marks_distribution': [],
+            'top_students_scores': [],  # Default empty list
             'total_documents': 0,
             'total_peer_evaluations': 0,
             'evaluated_peer_evaluations': 0,
             'pending_peer_evaluations': 0,
         }
+
     return render(request, 'TAHome.html', {
         'users': user_profile.serialize(),
         'analytics_data': analytics_data,
+        'num_ques': num_ques,
     })
 
 
