@@ -863,6 +863,7 @@ def studentEval(request, doc_id, eval_id):
     # Fetch document and evaluation objects
     document = documents.objects.filter(id=document_id).first()
     evaluation = PeerEvaluation.objects.filter(document_id=document_id, evaluator_id=evaluator_id).first()
+    total_marks = numberOfQuestions.objects.all().first().total_marks
 
     # Check user authentication and access permissions
     user_profile = UserProfile.objects.filter(user=request.user).first()
@@ -886,6 +887,7 @@ def studentEval(request, doc_id, eval_id):
         'document_title': document.title,
         'document_description': document.description,
         'number_of_questions': [i + 1 for i in range(num_questions)],
+        'total_marks': round(total_marks/num_questions)
     }
 
     # Handle POST request for submitting the evaluation
