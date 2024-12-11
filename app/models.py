@@ -59,6 +59,8 @@ class PeerEvaluation(models.Model):
     score = models.IntegerField()
     document = models.ForeignKey('documents', on_delete=models.CASCADE)
     evaluated = models.BooleanField(default=False)
+    ticket = models.IntegerField(default=0)
+    evaluated_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, related_name='evaluated_by')
 
     def __str__(self):
         return f'Peer Evaluation for Document {self.document.title}'
