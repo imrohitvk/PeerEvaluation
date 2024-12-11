@@ -319,6 +319,7 @@ def TeacherHome(request):
         return redirect('/TeacherHome/')
 
     # Analytics for Teacher Dashboard
+
     try:
         # Distribution of marks for students
         marks_distribution = (
@@ -327,6 +328,12 @@ def TeacherHome(request):
             .order_by('score')
         )
 
+        # Fetch top 10 students' marks
+        top_students_scores = (
+            PeerEvaluation.objects.order_by('-score')
+            .values_list('score', flat=True)[:10]
+        )
+        
         # Total peer evaluations and their status
         total_peer_evaluations = PeerEvaluation.objects.count()
         evaluated_peer_evaluations = PeerEvaluation.objects.filter(evaluated=True).count()
@@ -344,22 +351,24 @@ def TeacherHome(request):
         # Data for rendering
         analytics_data = {
             'marks_distribution': list(marks_distribution),
+            'top_students_scores': list(top_students_scores),  # Add top 10 students' scores
             'total_documents': total_documents,
             'total_peer_evaluations': peer_evaluations['total'],
             'evaluated_peer_evaluations': peer_evaluations['evaluated'],
             'pending_peer_evaluations': peer_evaluations['pending'],
         }
-
     except Exception as e:
         # Handle unexpected errors
         print(f"Error fetching analytics: {e}")
         analytics_data = {
             'marks_distribution': [],
+            'top_students_scores': [],  # Default empty list
             'total_documents': 0,
             'total_peer_evaluations': 0,
             'evaluated_peer_evaluations': 0,
             'pending_peer_evaluations': 0,
         }
+
     return render(request, 'TeacherHome.html', {
         'users': user_profile.serialize(),
         'analytics_data': analytics_data,

@@ -461,40 +461,41 @@
             });
         }
 
-        const ctx = document.getElementById('histogram').getContext('2d');
+        // Assume `analyticsData` is passed to the template and contains `top_students_scores`
+        const topStudentsScores = JSON.parse('{{ analytics_data.top_students_scores|safe }}');
 
+        // Prepare labels and data for histogram
+        const labels = Array.from({ length: topStudentsScores.length }, (_, i) => i + 1); // Rank 1 to 10
+        const data = topStudentsScores;
+
+        const ctx = document.getElementById('histogram').getContext('2d');
         const chart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: [0, 1, 2, 3, 4],
-            datasets: [{
-            label: 'Number of Students',
-            data: [19, 28, 20, 16],
-            }]
-        },
-        options: {
-            scales: {
-            xAxes: [{
-                display: false,
-                barPercentage: 1.3,
-                ticks: {
-                max: 3,
+            type: 'bar',
+            data: {
+                labels: labels, // Replace with ranks 1-10
+                datasets: [{
+                    label: 'Marks of Top 10 Students',
+                    data: data,  // Replace with scores
+                }]
+            },
+            options: {
+                scales: {
+                    xAxes: [{
+                        display: true,
+                        barPercentage: 0.9,
+                        ticks: {
+                            max: 10,  // Show 10 ranks
+                        }
+                    }],
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true
+                        }
+                    }]
                 }
-            }, {
-                display: true,
-                ticks: {
-                autoSkip: false,
-                max: 4,
-                }
-            }],
-            yAxes: [{
-                ticks: {
-                beginAtZero: true
-                }
-            }]
             }
-        }
         });
+
         </script>
 </body>
 
