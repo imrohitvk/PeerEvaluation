@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 class numberOfQuestions(models.Model):
     id = models.AutoField(primary_key=True)
     number = models.IntegerField()
+    total_marks = models.IntegerField(default=0)
 
     def __str__(self):
         return self.number

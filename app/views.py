@@ -379,8 +379,6 @@ def TeacherHome(request):
 
     # Analytics for Teacher Dashboard
 
-
-
     try:
         # Distribution of marks for students: Group by document_id and calculate average score
         marks_distribution = (
@@ -399,6 +397,8 @@ def TeacherHome(request):
         total_peer_evaluations = PeerEvaluation.objects.count()
         evaluated_peer_evaluations = PeerEvaluation.objects.filter(evaluated=True).count()
         pending_peer_evaluations = PeerEvaluation.objects.filter(evaluated=False).count()
+
+        num_ques = numberOfQuestions.objects.all().first().total_marks
 
         peer_evaluations = {
             'total': total_peer_evaluations,
@@ -422,14 +422,12 @@ def TeacherHome(request):
                 {
                     'evaluator': Student.objects.filter(uid=ticket.evaluator_id).first().student_id.username,
                     'document': documents.objects.filter(id=ticket.document_id).first().file.url,
-                    'evaluation': " ".join([str(i) for i in eval(ticket.evaluation)]),
+                    'evaluation': ".".join([str(i) for i in eval(ticket.evaluation)]),
                     'evaluation_sheet': f"{base_url}studentEval/{ticket.document_id}/{ticket.evaluator_id}/",
                 } for ticket in tickets_raised
             ]
         }
     except Exception as e:
-        # Handle unexpected errors
-        print(f"Error fetching analytics: {e}")
         analytics_data = {
             'top_students_scores': [],  # Default empty list
             'total_documents': 0,
@@ -437,11 +435,11 @@ def TeacherHome(request):
             'evaluated_peer_evaluations': 0,
             'pending_peer_evaluations': 0,
         }
-    print("Analytics Data:", analytics_data)
 
     return render(request, 'TeacherHome.html', {
         'users': user_profile.serialize(),
         'analytics_data': analytics_data,
+        'num_ques': num_ques,
     })
 
 
@@ -700,14 +698,16 @@ def change_role(request):
 def questionNumbers(request):
     current_user_profile = UserProfile.objects.filter(user=request.user).first()
     if request.method == 'POST':
-        number = request.POST.get('num-questions')
+        number, total_marks = request.POST.get('num-questions'), request.POST.get('total_marks')
         numQue = numberOfQuestions.objects.all().first()
         if not numQue:
             numQue = numberOfQuestions(number=number)
+            numQue = numberOfQuestions(total_marks=total_marks)
         else:
             numQue.number = number
+            numQue.total_marks = total_marks
         numQue.save()
-        messages.success(request, 'Number of questions updated successfully!')
+        messages.success(request, 'Number of questions and total marks updated successfully!')
         return redirect(f"/{current_user_profile.role}Home/")
     return redirect('/logout/')
 
