@@ -73,6 +73,94 @@ def generate_password(length):
     return password
 
 
+# NOTE: This is route for uploading CSV file
+def uploadCSV(request):
+    # Check if the user has a role that allows file uploads (Admin, TA, Teacher)
+    user_profile = UserProfile.objects.filter(user=request.user).first()
+    if not user_profile or user_profile.role not in ["TA", "Admin", "Teacher"] or not request.user.is_authenticated:
+        messages.error(request, 'Permission denied')
+        return redirect('/logout/')
+
+    if request.method == 'POST':
+        file = request.FILES.get('csv-upload')
+        file_data = file.read().decode("utf-8")
+        file_data = file_data.strip()
+        lines = file_data.split("\n")
+
+        # Remove the first row (header)
+        lines.pop(0)
+
+        # Fetch the course the users belong to from the form (required for student assignment)
+        course_id = request.POST.get('course_id')
+        if not course_id:
+            messages.error(request, 'Course is required for student upload')
+            return redirect('/uploadCSV/')
+        
+        course = Course.objects.filter(id=course_id).first()
+        if not course:
+            messages.error(request, 'Invalid course selected')
+            return redirect('/uploadCSV/')
+
+        # Delete all existing Student and Document records for this course
+        Document.objects.filter(course_id=course).delete()
+        Student.objects.filter(course_id=course).delete()
+
+        for line in lines:
+            if line:
+                data = line.split(",")
+                try:
+                    # Get or create User instance
+                    user, created = User.objects.get_or_create(
+                        email=data[1],
+                        defaults={
+                            'username': data[1].split("@")[0],
+                            'first_name': data[0].split()[0],
+                            'last_name': data[0].split()[1] if len(data[0].split()) > 1 else '',
+                        }
+                    )
+
+                    if created:
+                        random_password = generate_password(10)
+                        html_message = render_to_string(
+                            "ForgotPasswordMailTemplate.html",  # Path to your email template
+                            {
+                                "username": data[1].split("@")[0],
+                                "new_password": random_password
+                            },
+                        )
+                        plain_message = strip_tags(html_message)
+
+                        # Send the email
+                        send_mail(
+                            subject="Account created : Credentials",
+                            message=plain_message,
+                            from_email="no-reply@evaluation-system.com",
+                            recipient_list=[data[1]],
+                            html_message=html_message,
+                            fail_silently=False,
+                        )
+                        user.set_password(random_password)
+                        user.save()
+
+                        # Create a new UserProfile for the student with the correct course
+                        new_user_profile = UserProfile(user=user, role="Student")
+                        new_user_profile.save()
+
+                    # Create or update Student record with course reference
+                    Student.objects.update_or_create(
+                        student_id=user,
+                        defaults={'uid': data[2], 'course_id': course}
+                    )
+                except Exception as e:
+                    print(f"Error processing line: {line} - {e}")
+                    continue
+
+        messages.info(request, 'Students uploaded successfully!')
+        return redirect(f"/{user_profile.role}Home/")
+
+    return redirect(f"/{user_profile.role}Home/")
+
+
 # NOTE: Send email to the assigned peer
 def send_peer_evaluation_email(evaluation_link, email_id):
     """
@@ -99,52 +187,45 @@ def send_peer_evaluation_email(evaluation_link, email_id):
         fail_silently=False,)
 
 
-def setPeerEval(document_instances):
+def setPeerEval(document_instances, course):
     """
-    Assign peer evaluations to students.
+    Assign peer evaluations to students within the given course.
     """
-    # Calculate the number of peers required per document
     num_peers = floor(sqrt(len(document_instances)))
-    all_students = list(Student.objects.all())
+    all_students = list(Student.objects.filter(course=course))  # Ensure students are filtered by course
     shuffle(all_students)
 
-    # Initialize a distribution map for each student
     student_distribution = {student.uid: num_peers for student in all_students}
-
-    # Shuffle document instances to distribute evaluations randomly
     peer_evaluations_assigned = defaultdict(int)
 
     for document in document_instances:
-        # Track how many students have been assigned to this document
         current_assigned_count = 0
 
         for student in all_students:
             if (
-                student.uid != document.uid.uid  # Avoid assigning a student to their own document
-                and student_distribution[student.uid] > 0  # Student can evaluate more
-                and peer_evaluations_assigned[document.id] < num_peers  # Document needs more reviewers
+                student.uid != document.uid.uid  # Avoid self-evaluation
+                and student_distribution[student.uid] > 0
+                and peer_evaluations_assigned[document.id] < num_peers
             ):
-                # Assign the evaluation
                 PeerEvaluation.objects.create(
                     evaluator_id=student.uid,
-                    evaluation_date=None,  # Placeholder
-                    evaluation=[],  # Placeholder
-                    feedback=[],  # Placeholder
-                    score=0,  # Placeholder
+                    evaluation_date=None,
+                    evaluation=[],
+                    feedback=[],
+                    score=0,
                     document=document,
                 )
                 email = User.objects.get(pk=student.student_id_id).email
                 student_distribution[student.uid] -= 1
                 peer_evaluations_assigned[document.id] += 1
                 current_assigned_count += 1
-                # encoded_doc_id = encode_id(str(document.id) + " " + str(student.uid))
                 evaluation_link = f"{base_url}studentEval/{document.id}/{student.uid}/"
                 send_peer_evaluation_email(evaluation_link, email)
-                
+
                 if current_assigned_count == num_peers:
                     break
 
-    return  # Function ends here with evaluations assigned
+    return
 
 
 def AdminDashboard(request):
@@ -317,7 +398,6 @@ def TAHome(request):
     })
 
 
-# NOTE: This is Teacher dashboard
 def TeacherHome(request):
     """
     Handles the Teacher Dashboard functionality, including document uploads and analytics.
@@ -332,8 +412,8 @@ def TeacherHome(request):
         messages.error(request, 'Permission denied')
         return redirect('/login/')
 
-    # Fetch courses associated with the teacher
-    courses = Course.objects.filter(id=user_profile.course_id.id)  # Get the course assigned to the teacher
+    teacher = UserProfile.objects.filter(role="Teacher", user_id=request.user).first()
+    courses = Course.objects.filter(id=teacher.course_id.id)
 
     if request.method == 'POST':
         # Handle document upload logic
@@ -344,39 +424,51 @@ def TeacherHome(request):
         course_id = request.POST.get('course_id')
         document_instances = []
 
-        for doc in docs:
-            # Process each uploaded PDF and retrieve UID
-            uid, processed_doc = process_uploaded_pdf(doc)
+        # Ensure course is selected
+        if not course_id:
+            messages.error(request, 'Course is required for document upload')
+            return redirect('/TeacherHome/')
 
-            # Ensure the student exists
-            student = Student.objects.filter(uid=uid).first()
-            if not student:
-                continue
+        course = Course.objects.filter(id=course_id).first()
+        if not course:
+            messages.error(request, 'Invalid course selected')
+            return redirect('/TeacherHome/')
+        
+        uploadCSV(request)
 
-            # Create and save the document object
-            document = Document(
-                title=title,
-                description=description,
-                user_id=user,
-                uid=student,
-                file=processed_doc,
-                course_id=course_id
-            )
-            document.save()
-            document_instances.append(document)
+        # for doc in docs:
+        #     # Process each uploaded document
+        #     uid, processed_doc = process_uploaded_pdf(doc)
 
-        # Background thread function for calling setPeerEval
-        def run_peer_eval(documents):
-            try:
-                setPeerEval(documents)
-            except Exception as e:
-                error_message = f"Error in Peer Evaluation assignment: {str(e)}"
-                print(error_message)  # Replace with a logging system if available
+        #     # Ensure the student exists for this document
+        #     student = Student.objects.filter(uid=uid).first()
+        #     if not student:
+        #         continue
 
-        # Start the thread for setPeerEval
-        if document_instances:
-            thread = threading.Thread(target=run_peer_eval, args=(document_instances,))
-            thread.start()
+        #     # Create and save the document object
+        #     document = Document(
+        #         title=title,
+        #         description=description,
+        #         user_id=user,
+        #         uid=student,
+        #         file=processed_doc,
+        #         course=course  # Link document to the course
+        #     )
+        #     document.save()
+        #     document_instances.append(document)
+
+        # # Background thread function for calling setPeerEval
+        # def run_peer_eval(documents):
+        #     try:
+        #         setPeerEval(documents, course)  # Pass course to setPeerEval
+        #     except Exception as e:
+        #         error_message = f"Error in Peer Evaluation assignment: {str(e)}"
+        #         print(error_message)  # Replace with a logging system if available
+
+        # # Start the thread for setPeerEval
+        # if document_instances:
+        #     thread = threading.Thread(target=run_peer_eval, args=(document_instances,))
+        #     thread.start()
 
         messages.success(request, 'Documents uploaded successfully! Peer evaluations are being assigned in the background.')
         return redirect('/TeacherHome/')
@@ -395,6 +487,7 @@ def TeacherHome(request):
         'users': user_profile.serialize(),
         'analytics_data': analytics_data,
     })
+
 
 # NOTE: This is route for uploading bunch of PDF Files and creating the users
 def uploadFile(request):
@@ -536,93 +629,6 @@ def evaluationList(request):
             'evaluations': evaluations
         })
     return render(request, 'docs.html', {'docs': docs})
-
-
-# NOTE: This is route for uploading CSV file
-def uploadCSV(request):
-    # Check if the user has a role that allows file uploads (Admin only)
-    user_profile = UserProfile.objects.filter(user=request.user).first()
-    if not user_profile or user_profile.role not in ["TA", "Admin", "Teacher"] or not request.user.is_authenticated:
-        messages.error(request, 'Permission denied')
-        return redirect('/logout/')
-
-    if request.method == 'POST':
-        file = request.FILES.get('csv-upload')
-        file_data = file.read().decode("utf-8")
-        file_data = file_data.strip()
-        lines = file_data.split("\n")
-
-        # Remove the first row (header)
-        lines.pop(0)
-
-        # Delete all physical files associated with documents
-        documents_to_delete = documents.objects.all()
-        for doc in documents_to_delete:
-            if doc.file and os.path.isfile(doc.file.path):  # Check if file exists
-                try:
-                    os.remove(doc.file.path)  # Delete the file from the file system
-                except Exception as e:
-                    print(f"Error deleting file {doc.file.path}: {e}")
-
-        # Delete all existing Student and document records
-        documents.objects.all().delete()
-        Student.objects.all().delete()
-        PeerEvaluation.objects.all().delete()
-
-        for line in lines:
-            if line:
-                data = line.split(",")
-                try:
-                    # Get or create User instance
-                    user, created = User.objects.get_or_create(
-                        email=data[1],
-                        defaults={
-                            'username': data[1].split("@")[0],
-                            'first_name': data[0].split()[0],
-                            'last_name': data[0].split()[1] if len(data[0].split()) > 1 else '',
-                        }
-                    )
-
-                    if created:
-
-                        random_password = generate_password(10)
-                        html_message = render_to_string(
-                            "ForgotPasswordMailTemplate.html",  # Path to your email template
-                            {
-                                "username": data[1].split("@")[0],
-                                "new_password": random_password  # Link to the evaluation
-                            },
-                        )
-                        plain_message = strip_tags(html_message)  # Fallback plain text version
-
-                        # Send the email
-                        send_mail(
-                            subject="Account created : Credentials",
-                            message=plain_message,
-                            from_email="no-reply@evaluation-system.com",
-                            recipient_list=[data[1]],
-                            html_message=html_message,  # Attach the HTML message
-                            fail_silently=False,
-                        )
-                        user.set_password(random_password)
-                        user.save()
-
-                        user_id = User.objects.get(username=data[1].split("@")[0]).id
-                        new_user_profile = UserProfile(user_id=user_id, role="Student")
-                        new_user_profile.save()
-
-                    # Create or update Student record
-                    Student.objects.update_or_create(
-                        student_id=User.objects.get(email=data[1]),
-                        defaults={'uid': data[2]}
-                    )
-                except Exception as e:
-                    print(f"Error processing line: {line} - {e}")
-                    continue
-
-        messages.info(request, 'Students uploaded successfully!')
-        return redirect(f"/{user_profile.role}Home/")
-    return redirect(f"/{user_profile.role}Home/")
 
 
 # TODO: Working fine but getting status code 302
@@ -933,7 +939,6 @@ def forgetPassword(request):
             messages.error(request, 'User not found.')
         return redirect('/login/')
     return render(request, 'changePassword.html')
-
 
 
 def raise_ticket(request, doc_id):
