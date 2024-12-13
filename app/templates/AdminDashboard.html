@@ -106,21 +106,6 @@
                         </select>
                     </div>
 
-                    <!-- Course Allocation -->
-                    <div class="mt-4">
-                        <label for="course" class="block text-sm font-medium text-gray-700">Allocate Course</label>
-                        <select
-                            id="course"
-                            name="course"
-                            class="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                            <option value="" disabled selected>Select Course</option>
-                            {% for course in courses %}
-                                <option value="{{ course.id }}">{{ course.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
                     <!-- Submit Button -->
                     <div class="flex justify-end">
                         <button
