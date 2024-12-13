@@ -147,12 +147,11 @@ def setPeerEval(document_instances):
     return  # Function ends here with evaluations assigned
 
 
-# NOTE: The Admin dashboard
 def AdminDashboard(request):
     """
     Handles the Admin Dashboard functionality, including document uploads and peer evaluation assignment.
     """
-    # Check if the user in request
+    # Check if the user is authenticated
     if not request.user.is_authenticated:
         messages.error(request, 'Please login first')
         return redirect('/login/')
@@ -162,51 +161,20 @@ def AdminDashboard(request):
         messages.error(request, 'Permission denied')
         return redirect('/login/')
 
+    # Handle adding a new course
     if request.method == 'POST':
-        title = request.POST.get('title')
-        description = request.POST.get('description')
-        user = User.objects.get(username=request.user)
-        docs = request.FILES.getlist('doc')  # Get multiple uploaded files
-        document_instances = []
+        course_name = request.POST.get('course_name')
+        start_date = request.POST.get('start_date')
 
-        for doc in docs:
-            # Process each uploaded PDF and retrieve UID
-            uid, processed_doc = process_uploaded_pdf(doc)
+        if course_name:
+            course = Course(name=course_name, start_date=start_date)
+            course.save()
+            messages.success(request, 'Course added successfully')
+        else:
+            messages.error(request, 'Course name is required')
 
-            # Ensure the student exists
-            student = Student.objects.filter(uid=uid).first()
-            if not student:
-                continue
-
-            # Create and save the document object
-            document = documents(
-                title=title,
-                description=description,
-                user_id=user,
-                uid=student,
-                file=processed_doc
-            )
-            document.save()
-            document_instances.append(document)
-
-        # Background thread function for calling setPeerEval
-        def run_peer_eval(documents):
-            try:
-                setPeerEval(documents)
-            except Exception as e:
-                # Log the error and notify the admin (adjust logging as per your project setup)
-                error_message = f"Error in Peer Evaluation assignment: {str(e)}"
-                print(error_message)  # Replace with a logging system if available
-
-        # Start the thread for setPeerEval
-        if document_instances:
-            thread = threading.Thread(target=run_peer_eval, args=(document_instances,))
-            thread.start()
-
-        messages.success(request, 'Documents uploaded successfully! Peer evaluations are being assigned in the background.')
-        return redirect('/AdminHome/')
-
-    return render(request, 'AdminDashboard.html', {'users': user_profile.serialize()})
+    courses = Course.objects.all()
+    return render(request, 'AdminDashboard.html', {'users': user_profile.serialize(), 'courses': courses})
 
 
 # NOTE: This is TA dashboard
