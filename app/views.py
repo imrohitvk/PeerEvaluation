@@ -152,9 +152,13 @@ def AdminDashboard(request):
     """
     Handles the Admin Dashboard functionality, including document uploads and peer evaluation assignment.
     """
-    # Check if the user is an admin
+    # Check if the user in request
+    if not request.user.is_authenticated:
+        messages.error(request, 'Please login first')
+        return redirect('/login/')
+    
     user_profile = UserProfile.objects.filter(user=request.user).first()
-    if not user_profile or user_profile.role != 'Admin' or not request.user.is_authenticated:
+    if not user_profile or user_profile.role != 'Admin':
         messages.error(request, 'Permission denied')
         return redirect('/login/')
 
@@ -211,8 +215,12 @@ def TAHome(request):
     Handles the TA Dashboard functionality, including document uploads and peer evaluation assignment.
     """
     # Check if the user is an TA
+    if not request.user.is_authenticated:
+        messages.error(request, 'Please login first')
+        return redirect('/login/')
+    
     user_profile = UserProfile.objects.filter(user=request.user).first()
-    if not user_profile or user_profile.role != 'TA' or not request.user.is_authenticated:
+    if not user_profile or user_profile.role != 'TA':
         messages.error(request, 'Permission denied')
         return redirect('/login/')
 
@@ -258,7 +266,7 @@ def TAHome(request):
             thread.start()
 
         messages.success(request, 'Documents uploaded successfully! Peer evaluations are being assigned in the background.')
-        return redirect('/TeacherHome/')
+        return redirect('/TAHome/')
 
     # Analytics for Teacher Dashboard
     try:
@@ -331,8 +339,12 @@ def TeacherHome(request):
     Handles the Teacher Dashboard functionality, including document uploads and analytics.
     """
     # Check if the user is a Teacher
+    if not request.user.is_authenticated:
+        messages.error(request, 'Please login first')
+        return redirect('/login/')
+    
     user_profile = UserProfile.objects.filter(user=request.user).first()
-    if not user_profile or user_profile.role != 'Teacher' or not request.user.is_authenticated:
+    if not user_profile or user_profile.role != 'Teacher':
         messages.error(request, 'Permission denied')
         return redirect('/login/')
     
@@ -633,7 +645,9 @@ def uploadCSV(request):
                             'last_name': data[0].split()[1] if len(data[0].split()) > 1 else '',
                         }
                     )
+
                     if created:
+
                         random_password = generate_password(10)
                         html_message = render_to_string(
                             "ForgotPasswordMailTemplate.html",  # Path to your email template
@@ -646,10 +660,10 @@ def uploadCSV(request):
 
                         # Send the email
                         send_mail(
-                            subject="Credentials",
+                            subject="Account created : Credentials",
                             message=plain_message,
                             from_email="no-reply@evaluation-system.com",
-                            recipient_list=[data[1].split("@")[0]],
+                            recipient_list=[data[1]],
                             html_message=html_message,  # Attach the HTML message
                             fail_silently=False,
                         )
@@ -934,7 +948,7 @@ def forgetPassword(request):
 
             # Send the email
             send_mail(
-                subject="Credentials",
+                subject="Peer Evaluation Forget Password credentials",
                 message=plain_message,
                 from_email="no-reply@evaluation-system.com",
                 recipient_list=[user.email],
