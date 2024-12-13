@@ -5,6 +5,7 @@ from datetime import datetime
 
 class Course(models.Model):
     id = models.AutoField(primary_key=True)
+    course_id = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=200, unique=True)
     start_date = models.DateField(null=True, blank=True, default=datetime.now)
 
