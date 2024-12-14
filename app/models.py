@@ -60,7 +60,7 @@ class Student(models.Model):
         return f"{self.student_id.username} - {self.course_id.name}"
 
 
-class Document(models.Model):
+class documents(models.Model):
     id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=200, blank=True, null=True)
     description = models.TextField(null=True)
