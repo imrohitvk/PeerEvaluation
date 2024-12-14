@@ -247,19 +247,17 @@ def AdminDashboard(request):
         course_id = request.POST.get('course_id')
         course_name = request.POST.get('course_name')
         start_date = request.POST.get('start_date')
-        teacher_ids = request.POST.getlist('teacher')  # list of teacher ids
+        teacher_id = request.POST.getlist('teacher')  # list of teacher ids
 
         if course_name:
             course = Course(name=course_name, start_date=start_date, course_id=course_id)
             course.save()
 
             # Assign teachers to the new course
-            for teacher_id in teacher_ids:
-                # Ensure each teacher is assigned the course properly
-                teacher_profile = UserProfile.objects.filter(user_id=teacher_id).first()
-                if teacher_profile:
-                    teacher_profile.course_id = course  # Assign the course object, not the id
-                    teacher_profile.save()
+            teacher_profile = UserProfile.objects.filter(user_id=teacher_id, role='Teacher').first()
+            if teacher_profile:
+                teacher_profile.course_id = course  # Assign the course object, not the id
+                teacher_profile.save()
 
             messages.success(request, 'Course added successfully')
         else:
