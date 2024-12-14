@@ -78,7 +78,7 @@ WSGI_APPLICATION = 'peereval.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'iitrpr',          # Database name
+        'NAME': 'eval',          # Database name
         'USER': 'postgres',              # Your PostgreSQL username
         'PASSWORD': '12345678',      # Your PostgreSQL password
         'HOST': '127.0.0.1',           # Localhost
