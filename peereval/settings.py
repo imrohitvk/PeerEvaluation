@@ -77,8 +77,12 @@ WSGI_APPLICATION = 'peereval.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': str(BASE_DIR / 'db.sqlite3'),  # Cast to string
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'iitrpr',          # Database name
+        'USER': 'postgres',              # Your PostgreSQL username
+        'PASSWORD': '12345678',      # Your PostgreSQL password
+        'HOST': '127.0.0.1',           # Localhost
+        'PORT': '5432',                # Default PostgreSQL port
     }
 }
 
