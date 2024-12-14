@@ -77,12 +77,8 @@ WSGI_APPLICATION = 'peereval.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'iitrpr',
-        'USER': 'postgres',
-        'PASSWORD': '12345678',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': str(BASE_DIR / 'db.sqlite3'),  # Cast to string
     }
 }
 
@@ -135,10 +131,12 @@ STATICFILES_DIR = {
 MEDIA_ROOT = os.path.join(BASE_DIR, 'public/static')
 MEDIA_URL = '/media/'
 
-# Email configuration for MailHog
+# Email configuration for Gmail
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "127.0.0.1"  # MailHog host
-EMAIL_PORT = 1025         # Default SMTP port for MailHog
-EMAIL_USE_TLS = False     # No TLS required for MailHog
-EMAIL_USE_SSL = False     # No SSL required for MailHog
-DEFAULT_FROM_EMAIL = "no-reply@example.com"
+EMAIL_HOST = "smtp.gmail.com"  # Gmail SMTP server
+EMAIL_PORT = 587               # TLS port
+EMAIL_USE_TLS = True           # Use TLS for secure connection
+EMAIL_USE_SSL = False          # SSL not required with TLS
+EMAIL_HOST_USER = "aivs-coordinator@iitrpr.ac.in"  # Replace with your Gmail address
+EMAIL_HOST_PASSWORD = "wygr ualf pfsv ksmh"     # Replace with your Gmail password
+DEFAULT_FROM_EMAIL = "aivs-coordinator@iitrpr.ac.in"

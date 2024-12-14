@@ -1,26 +1,14 @@
 from django.db import models
 from django.contrib.auth.models import User
-from datetime import datetime
-
-
-class Course(models.Model):
-    id = models.AutoField(primary_key=True)
-    course_id = models.CharField(max_length=10, unique=True)
-    name = models.CharField(max_length=200, unique=True)
-    start_date = models.DateField(null=True, blank=True, default=datetime.now)
-
-    def __str__(self):
-        return self.name
 
 
 class numberOfQuestions(models.Model):
     id = models.AutoField(primary_key=True)
     number = models.IntegerField()
     total_marks = models.IntegerField(default=0)
-    course_id = models.ForeignKey(Course, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.number} for {self.course_id.name}"
+        return self.number
 
 
 class UserProfile(models.Model):
@@ -32,7 +20,6 @@ class UserProfile(models.Model):
         ('Admin', 'Admin'),
     ]
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-    course_id = models.ForeignKey(Course, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
@@ -45,36 +32,24 @@ class UserProfile(models.Model):
         }
 
 
-class Student(models.Model):
-    id = models.AutoField(primary_key=True)
-    student_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='students')
-    course_id = models.ForeignKey(Course, on_delete=models.CASCADE)
-    uid = models.IntegerField(unique=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['student_id', 'course_id'], name='unique_student_course')
-        ]
-
-    def __str__(self):
-        return f"{self.student_id.username} - {self.course_id.name}"
-
-
+# Create your models here.
 class documents(models.Model):
     id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=200, blank=True, null=True)
     description = models.TextField(null=True)
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='documents')
-    peer_evaluations = models.ManyToManyField(
-        'PeerEvaluation',
-        related_name='evaluated_documents'  # Updated related_name
-    )
-    uid = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='student_documents')
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    peer_evaluations = models.ManyToManyField('PeerEvaluation')
+    uid = models.ForeignKey('Student', on_delete=models.CASCADE)
     file = models.FileField(upload_to='documents/')
-    course_id = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='course_documents')
 
     def __str__(self):
         return self.title
+    
+
+class Student(models.Model):
+    id = models.AutoField(primary_key=True)
+    student_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='students')  # Link to User
+    uid = models.IntegerField(unique=True)
 
 
 class PeerEvaluation(models.Model):
@@ -82,13 +57,8 @@ class PeerEvaluation(models.Model):
     evaluation_date = models.DateTimeField(auto_now_add=True)
     evaluation = models.TextField()
     feedback = models.TextField()
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='peer_evaluations')
     score = models.IntegerField()
-    document = models.ForeignKey(
-        documents,
-        on_delete=models.CASCADE,
-        related_name='document_peer_evaluations'  # Updated related_name
-    )
+    document = models.ForeignKey('documents', on_delete=models.CASCADE)
     evaluated = models.BooleanField(default=False)
     ticket = models.IntegerField(default=0)
     evaluated_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, related_name='evaluated_by')

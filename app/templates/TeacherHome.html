@@ -130,28 +130,21 @@
                 <div class="mb-6">
                     <form action="/uploadCSV/" method="post" enctype="multipart/form-data">
                         {% csrf_token %}
-                        
-                        <div class="mb-4">
-                            <label for="course_id" class="block text-gray-700 font-semibold mb-2">Course:</label>
-                            <select
-                                id="course_id"
-                                name="course_id"
-                                class="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required
-                            >
-                                <option value="" disabled selected>Select Course</option>
-                                {% for course in courses %}
-                                    <option value="{{ course.id }}">{{ course.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
                         <label for="csv-upload" class="block text-gray-800 font-semibold mb-2">Upload a CSV
                             File:</label>
                         <input type="file" id="csv-upload" name="csv-upload" accept=".csv"
                             class="block w-full p-2 border border-gray-300 rounded-md" required>
                         <p class="text-sm text-gray-500 mt-2">Please upload a single CSV file.</p>
+                        <button id="submit-csv"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-4">Submit CSV
+                            File</button>
+                    </form>
+                </div>
 
-
+                <!-- Upload Section for Multiple PDFs -->
+                <div>
+                    <form action="/TeacherHome/" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
                         <label for="pdf-upload" class="block text-gray-800 font-semibold mb-2">Upload Multiple PDF
                             Files:</label>
                         <input type="file" id="pdf-upload" name="doc" accept=".pdf" multiple
@@ -269,23 +262,8 @@
                         </select>
                     </div>
 
-                    <!-- Course Allocation -->
-                    <div >
-                        <label for="course" class="block text-sm font-medium text-gray-700">Allocate Course</label>
-                        <select
-                            id="course"
-                            name="course"
-                            class="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                            <option value="" disabled selected>Select Course</option>
-                            {% for course in courses %}
-                                <option value="{{ course.id }}">{{ course.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
                     <!-- Submit Button -->
-                    <div class="flex justify-end">
+                    <div class="flex justify-left">
                         <button
                             type="submit"
                             class="bg-blue-500 hover:bg-blue-600 text-white font-medium px-6 py-3 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
@@ -319,21 +297,6 @@
                         <input type="total_marks" id="total_marks" name="total_marks"
                             class="border border-gray-300 rounded-lg p-2 w-full"
                             placeholder="Enter total marks" required>
-                    </div>
-
-                    <!-- Course Allocation -->
-                    <div class="mb-4">
-                        <label for="course_id" class="block text-gray-700 font-semibold mb-2">Course:</label>
-                        <select
-                            id="course_id"
-                            name="course_id"
-                            class="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required
-                        >
-                            <option value="" disabled selected>Select Course</option>
-                            {% for course in courses %}
-                                <option value="{{ course.id }}">{{ course.name }}</option>
-                            {% endfor %}
-                        </select>
                     </div>
 
                     <!-- Submit Button -->
@@ -511,6 +474,94 @@
                 }
             });
         }
+
+        const analyticsData = {{ analytics_data|safe }};
+        const topScores = analyticsData.top_students_scores;
+        // Extract average scores
+        const avgScores = topScores.map(item => item.avg_score);
+        function generateHistogram() {
+        const maxMarksInput = {{ num_ques|safe }};
+        const maxMarks = parseInt(maxMarksInput);
+
+        if (isNaN(maxMarks) || maxMarks <= 0) {
+            alert("Please enter a valid maximum marks value.");
+            return;
+        }
+
+        const step = maxMarks / 10;
+        const scoreRanges = Array.from({ length: 10 }, (_, i) => ({
+            min: i * step,
+            max: (i + 1) * step,
+            label: `${Math.floor(i * step)}-${Math.floor((i + 1) * step)}`,
+            count: 0,
+        }));
+
+        avgScores.forEach((score) => {
+            scoreRanges.forEach((range) => {
+                if (score >= range.min && score < range.max) {
+                    range.count += 1;
+                }
+            });
+        });
+
+        const labels = scoreRanges.map((range) => range.label);
+        const counts = scoreRanges.map((range) => range.count);
+
+        const ctx = document.getElementById("scoreHistogram").getContext("2d");
+        new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: "Number of Documents",
+                        data: counts,
+                        backgroundColor: "rgba(75, 192, 192, 0.5)",
+                        borderColor: "rgba(75, 192, 192, 1)",
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: "Number of Documents",
+                            font: {
+                                size: 14,
+                            },
+                        },
+                        ticks: {
+                            stepSize: 1,
+                            color: "#4a5568",
+                        },
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Score Range",
+                            font: {
+                                size: 14,
+                            },
+                        },
+                        ticks: {
+                            color: "#4a5568",
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                },
+            },
+        });
+    }
     </script>
 </body>
 

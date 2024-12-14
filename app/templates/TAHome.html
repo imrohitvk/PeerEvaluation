@@ -270,7 +270,7 @@
                     </div>
 
                     <!-- Submit Button -->
-                    <div class="flex justify-end">
+                    <div class="flex justify-left">
                         <button
                             type="submit"
                             class="bg-blue-500 hover:bg-blue-600 text-white font-medium px-6 py-3 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
@@ -481,7 +481,93 @@
             });
         }
 
-        
+        const analyticsData = {{ analytics_data|safe }};
+        const topScores = analyticsData.top_students_scores;
+        // Extract average scores
+        const avgScores = topScores.map(item => item.avg_score);
+        function generateHistogram() {
+        const maxMarksInput = {{ num_ques|safe }};
+        const maxMarks = parseInt(maxMarksInput);
+
+        if (isNaN(maxMarks) || maxMarks <= 0) {
+            alert("Please enter a valid maximum marks value.");
+            return;
+        }
+
+        const step = maxMarks / 10;
+        const scoreRanges = Array.from({ length: 10 }, (_, i) => ({
+            min: i * step,
+            max: (i + 1) * step,
+            label: `${Math.floor(i * step)}-${Math.floor((i + 1) * step)}`,
+            count: 0,
+        }));
+
+        avgScores.forEach((score) => {
+            scoreRanges.forEach((range) => {
+                if (score >= range.min && score < range.max) {
+                    range.count += 1;
+                }
+            });
+        });
+
+        const labels = scoreRanges.map((range) => range.label);
+        const counts = scoreRanges.map((range) => range.count);
+
+        const ctx = document.getElementById("scoreHistogram").getContext("2d");
+        new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: "Number of Documents",
+                        data: counts,
+                        backgroundColor: "rgba(75, 192, 192, 0.5)",
+                        borderColor: "rgba(75, 192, 192, 1)",
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: "Number of Documents",
+                            font: {
+                                size: 14,
+                            },
+                        },
+                        ticks: {
+                            stepSize: 1,
+                            color: "#4a5568",
+                        },
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Score Range",
+                            font: {
+                                size: 14,
+                            },
+                        },
+                        ticks: {
+                            color: "#4a5568",
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                },
+            },
+        });
+    }
     </script>
 </body>
 
