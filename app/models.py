@@ -85,7 +85,7 @@ class PeerEvaluation(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='peer_evaluations')
     score = models.IntegerField()
     document = models.ForeignKey(
-        Document,
+        documents,
         on_delete=models.CASCADE,
         related_name='document_peer_evaluations'  # Updated related_name
     )
